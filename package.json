@@ -15,6 +15,7 @@
   },
   "files": [
     "dist",
+    "images",
     "LICENSE",
     "README.md",
     "NOTICE.md"

@@ -6,7 +6,7 @@ An efficient and visually pleasing implementation of Screen Space Ambient Occlus
 
 AO is critical for creating a sense of depth in any 3D scene — it darkens corners, crevices, and areas where geometry blocks light. If your scene looks "flat" or lacks depth cues, this package will help.
 
-### Why not N8AONode?
+### Why N8AONode?
 
 Three.js ships `GTAONode` and `SSGINode` as built-in WebGPU AO options, but both have practical drawbacks:
 
@@ -26,6 +26,10 @@ N8AO's approach — hemisphere sampling with built-in spatial + temporal denoisi
 ## Live Demo
 
 See it in production on [OpenHuman Atlas](https://atlas.openhumanatlas.com), the project this package was originally developed for.
+
+|                Without AO                 |                    With AO                    |
+| :---------------------------------------: | :-------------------------------------------: |
+| ![No AO](images/openhuman-atlas-noAO.png) | ![With AO](images/openhuman-atlas-withAO.png) |
 
 - Live atlas: [atlas.openhumanatlas.com](https://atlas.openhumanatlas.com)
 - Main site: [openhumanatlas.com](https://www.openhumanatlas.com)
