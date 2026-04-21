@@ -1,55 +1,46 @@
-# n8ao-webgpu
+# N8AO-WebGPU
 
-Unofficial Three.js WebGPU/TSL adaptation of N8AO.
+[![npm version](https://img.shields.io/npm/v/n8ao-webgpu.svg?style=flat-square)](https://www.npmjs.com/package/n8ao-webgpu)
 
-This package was extracted from an internal project after implementing a reusable WebGPU path based on the behavior, configuration model, and conventions of N8AO by N8python.
+An efficient and visually pleasing implementation of Screen Space Ambient Occlusion for the **Three.js WebGPU/TSL** pipeline, adapted from [N8AO](https://github.com/N8python/n8ao) by N8python.
 
-Status:
+AO is critical for creating a sense of depth in any 3D scene — it darkens corners, crevices, and areas where geometry blocks light. If your scene looks "flat" or lacks depth cues, this package will help.
 
-- experimental
-- unofficial
-- tested against `three@0.182.x`
+### Why not N8AONode?
 
-## What It Provides
+Three.js ships `GTAONode` and `SSGINode` as built-in WebGPU AO options, but both have practical drawbacks:
 
-`n8ao-webgpu` exposes:
+- **GTAO** — produces visible halo artifacts at depth discontinuities, especially at close zoom levels. Requires additional denoising that is not included out of the box, and the denoiser itself struggles at high zoom where sample density drops.
+- **SSGI** — higher quality when static, but significantly more expensive. Temporal filtering helps at rest, yet any post-blur reintroduces halos. Performance degrades quickly on zoomed-in or large-scale scenes.
 
-- `N8AONode` as the core AO compositor node
-- `createN8AOScenePass()` as a small helper for creating the required beauty/depth/normal scene pass
-- upstream-aligned config helpers such as `createDefaultN8AOConfiguration()`, `applyQualityMode()`, and `resolveDisplayMode()`
+N8AO's approach — hemisphere sampling with built-in spatial + temporal denoising and depth-aware upsampling — stays clean at all zoom levels without external denoise passes, avoids halos, and maintains predictable performance via half-res mode and quality presets.
 
-It does not attempt to wrap React, R3F, or postprocessing libraries directly.
+[![Scene with AO applied](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/example.jpeg)](https://n8python.github.io/n8ao/example/)
 
-## Compatibility
+|                                         Without AO                                          |                                              With AO                                              |
+| :-----------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
+| ![No AO](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/noao.jpeg) | ![With AO](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/combined.jpeg) |
 
-- `three@^0.182.0`
-- Three.js WebGPU/TSL pipeline
-- package format: ESM
+<sub>Images from the original [N8AO](https://github.com/N8python/n8ao) by N8python</sub>
 
-## Install
+## Live Demo
+
+See it in production on [OpenHuman Atlas](https://atlas.openhumanatlas.com), the project this package was originally developed for.
+
+- Live atlas: [atlas.openhumanatlas.com](https://atlas.openhumanatlas.com)
+- Main site: [openhumanatlas.com](https://www.openhumanatlas.com)
+
+## Installation
 
 ```bash
 npm install n8ao-webgpu three
 ```
 
-Peer dependency:
+Peer dependency: `three@^0.182.0`
 
-- `three@^0.182.0`
+## Usage
 
-## Why This Exists
-
-Upstream N8AO currently targets WebGL and explicitly notes that WebGPU is not officially supported yet. This package adapts the same AO approach to Three.js WebGPU/TSL so it can be reused in projects that already use the node-based WebGPU pipeline.
-
-## Live Reference
-
-This package was extracted from the WebGPU AO work originally developed for OpenHuman Atlas.
-
-- Live atlas reference: https://atlas.openhumanatlas.com
-- Main site: https://www.openhumanatlas.com
-
-Treat OpenHuman Atlas as the public production reference for the original integration lineage behind this package.
-
-## Basic Usage
+`N8AONode` plugs directly into Three.js WebGPU `PostProcessing`:
 
 ```ts
 import { PostProcessing } from "three/webgpu";
@@ -69,52 +60,152 @@ const n8ao = new N8AONode({
   camera,
 });
 
-n8ao.configuration.screenSpaceRadius = true;
-n8ao.configuration.aoRadius = 32;
-n8ao.configuration.halfRes = true;
-n8ao.configuration.depthAwareUpsampling = true;
-
 const post = new PostProcessing(renderer);
 post.outputNode = n8ao.getTextureNode();
 ```
 
-## When To Use It
+That's it. The effect works out of the box with any Three.js WebGPU scene as long as the depth buffer is being written to.
 
-Use this package if:
+## Configuration
 
-- you are already on Three.js WebGPU
-- you want an N8AO-like AO pipeline in TSL/node-based rendering
-- you are comfortable wiring your own scene pass and post-processing flow
+The four principal parameters that control the look of the AO:
 
-Do not use this package if:
+```ts
+n8ao.configuration.aoRadius = 5.0;
+n8ao.configuration.distanceFalloff = 1.0;
+n8ao.configuration.intensity = 5.0;
+n8ao.configuration.color = new THREE.Color(0, 0, 0);
+```
 
-- you need a WebGL drop-in AO pass
-- you want a React-only abstraction
-- you need a fully stable, upstream-supported API surface
+**`aoRadius: number`** — Controls the radius/size of the ambient occlusion in world units. Set it too low and AO becomes an edge detector. Too high and it becomes overly soft. The radius should be one or two magnitudes less than scene scale: if your scene is 10 units across, try 0.1–1. If 100, try 1–10.
 
-## Notes
+|                                             Radius 1                                              |                                             Radius 5                                              |                                             Radius 10                                              |
+| :-----------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------: |
+| ![Radius 1](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/radius1.jpeg) | ![Radius 5](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/radius2.jpeg) | ![Radius 10](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/radius3.jpeg) |
 
-- `scenePassNode` is optional, but recommended when the scene pass is not already guaranteed to receive its own `updateBefore()` calls each frame.
-- The helper preserves the bandwidth optimization from the original extraction by forcing the diffuse and normal MRT textures to `UnsignedByteType`.
-- The config intentionally keeps some upstream fields for parity even if not all of them are currently wired in the WebGPU path.
+**`distanceFalloff: number`** — Controls how fast the AO fades with distance relative to the radius. Defaults to 1. Decreasing it reduces haloing artifacts and improves accuracy; too small and the AO disappears entirely.
 
-## Caveats
+|                                             Distance Falloff 0.1                                              |                                             Distance Falloff 1                                              |                                             Distance Falloff 5                                              |
+| :-----------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------: |
+| ![Falloff 0.1](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/distancefalloff1.jpeg) | ![Falloff 1](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/distancefalloff2.jpeg) | ![Falloff 5](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/distancefalloff3.jpeg) |
 
-- This is not an official upstream N8AO package.
-- The API is intentionally close to the original extraction, but may still change.
-- It assumes familiarity with Three.js WebGPU render-graph style setup.
+**`intensity: number`** — Artistic control — applies `pow(ao, intensity)` to darken occluded areas. An intensity of 2 is subtle; 5 is prominent.
+
+**`color: THREE.Color`** — Color of the ambient occlusion. Default is black. Change it for a crude approximation of global illumination (e.g., a dark blue for sky-lit scenes). Expected in sRGB, automatically converted to linear.
+
+|                                    Color Black (Normal AO)                                    |                                   Color Blue (Appropriate)                                   |                                   Color Red (Too Bright)                                    |
+| :-------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: |
+| ![Black](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/color1.jpeg) | ![Blue](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/color2.jpeg) | ![Red](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/color3.jpeg) |
+
+<sub>Configuration images from the original [N8AO](https://github.com/N8python/n8ao) by N8python</sub>
+
+## Screen Space Radius
+
+For scenes where the camera moves across different scales:
+
+```ts
+n8ao.configuration.screenSpaceRadius = true;
+n8ao.configuration.aoRadius = 32; // pixels, recommended 16–64
+n8ao.configuration.distanceFalloff = 0.2; // ratio, 0–1
+```
+
+When `screenSpaceRadius` is `true`, `aoRadius` is in pixels instead of world units and `distanceFalloff` becomes a screen-space ratio.
+
+## Performance
+
+Enable half-resolution mode for a 2×–4× performance boost:
+
+```ts
+n8ao.configuration.halfRes = true;
+n8ao.configuration.depthAwareUpsampling = true; // on by default, highly recommended
+```
+
+### Quality Presets
+
+Switch quality modes with `applyQualityMode`:
+
+```ts
+import { applyQualityMode } from "n8ao-webgpu";
+
+applyQualityMode(n8ao.configuration, "Ultra");
+```
+
+| Quality Mode | AO Samples | Denoise Samples | Denoise Radius |            Best For             |
+| :----------: | :--------: | :-------------: | :------------: | :-----------------------------: |
+| Performance  |     8      |        4        |       12       |      Mobile, low-end iGPUs      |
+|     Low      |     16     |        4        |       12       | High-end mobile, iGPUs, laptops |
+|    Medium    |     16     |        8        |       12       |        Laptops, desktops        |
+|     High     |     64     |        8        |       6        |    Desktops, dedicated GPUs     |
+|    Ultra     |     64     |       16        |       6        |    Desktops, dedicated GPUs     |
+
+Or set them manually:
+
+```ts
+n8ao.configuration.aoSamples = 16;
+n8ao.configuration.denoiseSamples = 8;
+n8ao.configuration.denoiseRadius = 12;
+```
+
+Changing quality is expensive (shader recompile). Do it once at startup.
+
+## Display Modes
+
+Useful for debugging and showcasing the AO effect:
+
+```ts
+import { resolveDisplayMode } from "n8ao-webgpu";
+
+n8ao.configuration.displayMode = resolveDisplayMode("AO");
+```
+
+|   Mode   | Description                                      |                                              Preview                                               |
+| :------: | :----------------------------------------------- | :------------------------------------------------------------------------------------------------: |
+| Combined | Composites AO onto the scene — use in production | ![Combined](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/combined.jpeg) |
+|    AO    | Shows only the AO as black/white                 |       ![AO](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/ao.jpeg)       |
+|  No AO   | Scene without AO                                 |    ![No AO](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/noao.jpeg)     |
+|  Split   | Side-by-side: scene with and without AO          |    ![Split](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/split.jpeg)    |
+| Split AO | Side-by-side: AO only and combined               | ![Split AO](https://raw.githubusercontent.com/N8python/n8ao/master/example/tutorial/splitao.jpeg)  |
+
+<sub>Display mode images from the original [N8AO](https://github.com/N8python/n8ao) by N8python</sub>
+
+## Transparency
+
+Transparent objects with `depthWrite` disabled will not occlude anything and look correct. For transparent objects with `depthWrite` enabled, results are generally fine as long as alpha isn't too low.
+
+```ts
+// Force an object to be treated as opaque
+mesh.userData.treatAsOpaque = true;
+
+// Exclude an object from receiving AO
+mesh.userData.cannotReceiveAO = true;
+```
+
+## API Reference
+
+The package exports:
+
+| Export                             | Description                                                  |
+| :--------------------------------- | :----------------------------------------------------------- |
+| `N8AONode`                         | Core AO compositor node for WebGPU PostProcessing            |
+| `createN8AOScenePass()`            | Helper to create the required beauty/depth/normal scene pass |
+| `createDefaultN8AOConfiguration()` | Returns a default configuration object                       |
+| `applyQualityMode()`               | Apply a named quality preset to a configuration              |
+| `resolveDisplayMode()`             | Convert a display mode name to its numeric value             |
+
+## Limitations
+
+Like all screen-space methods, geometry that is offscreen or occluded by another object will not contribute to occlusion. Haloing is minimal but can appear in some cases. The effect is grounded in world-space with few view-dependent artifacts.
+
+## Compatibility
+
+- `three@^0.182.0` (Three.js WebGPU/TSL pipeline)
+- ESM only
+- All modern browsers with WebGPU support
 
 ## Attribution
 
-This package is derived from and inspired by:
+Derived from [N8AO](https://github.com/N8python/n8ao) by N8python. See [NOTICE.md](NOTICE.md) for full attribution and licensing details.
 
-- N8AO by N8python: https://github.com/N8python/n8ao
+## License
 
-See `NOTICE.md` for attribution and licensing background.
-
-## Validation
-
-This repo is validated with:
-
-- `pnpm test`
-- `pnpm build`
+[CC0-1.0](LICENSE) — do whatever you want with it, no attribution required.

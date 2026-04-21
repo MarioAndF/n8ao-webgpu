@@ -1,7 +1,7 @@
 {
   "name": "n8ao-webgpu",
   "version": "0.1.0",
-  "description": "Unofficial Three.js WebGPU/TSL adaptation of N8AO.",
+  "description": "An efficient and visually pleasing SSAO implementation for Three.js WebGPU/TSL, adapted from N8AO.",
   "license": "CC0-1.0",
   "type": "module",
   "main": "./dist/index.js",
