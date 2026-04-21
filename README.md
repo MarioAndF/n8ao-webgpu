@@ -118,4 +118,3 @@ This repo is validated with:
 
 - `pnpm test`
 - `pnpm build`
-- GitHub Actions CI in `.github/workflows/ci.yml`
