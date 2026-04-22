@@ -1,8 +1,8 @@
 # N8AO-WebGPU
 
-[![npm version](https://img.shields.io/npm/v/n8ao-webgpu.svg?style=flat-square)](https://www.npmjs.com/package/n8ao-webgpu)
+[![npm version](https://img.shields.io/npm/v/n8ao-webgpu.svg?style=flat-square)](https://www.npmjs.com/package/n8ao-webgpu) [![Endorsed by @N8Programs](https://img.shields.io/badge/%40N8Programs-endorsed-brightgreen?style=flat-square)](https://x.com/N8Programs/status/2047049981123510344)
 
-An efficient and visually pleasing implementation of Screen Space Ambient Occlusion for the **Three.js WebGPU/TSL** pipeline, adapted from [N8AO](https://github.com/N8python/n8ao) by N8python.
+An efficient and visually pleasing implementation of Screen Space Ambient Occlusion for the **Three.js WebGPU/TSL** pipeline, adapted from [N8AO](https://github.com/N8python/n8ao) by N8python. **[Officially endorsed](https://x.com/N8Programs/status/2047049981123510344) by the original author.**
 
 AO is critical for creating a sense of depth in any 3D scene — it darkens corners, crevices, and areas where geometry blocks light. If your scene looks "flat" or lacks depth cues, this package will help.
 
@@ -208,7 +208,7 @@ Like all screen-space methods, geometry that is offscreen or occluded by another
 
 ## Attribution
 
-Derived from [N8AO](https://github.com/N8python/n8ao) by N8python. See [NOTICE.md](NOTICE.md) for full attribution and licensing details.
+Derived from [N8AO](https://github.com/N8python/n8ao) by N8python. [Officially endorsed](https://x.com/N8Programs/status/2047049981123510344) by the original author. See [NOTICE.md](NOTICE.md) for full attribution and licensing details.
 
 ## License
 
