@@ -148,55 +148,27 @@ const getNormalFromDepthWithResolution = /* @__PURE__ */ Fn(
 );
 
 const TAU = Math.PI * 2;
-const GOLDEN_RATIO = 1.618033988749895;
-const PLASTIC_NUMBER = 1.324717957244746;
 
-/**
- * Interleaved Gradient Noise (IGN) by Jorge Jimenez.
- * Optimized form with shared base computation and precomputed
- * offset dot products to minimize ALU ops.
- */
-const ignDotScale = vec2(0.06711056, 0.00583715);
+const IGN_MULTIPLIER = 52.9829189;
+const IGN_TIME_SCROLL = 5.588238;
+const IGN_DOT_SCALE = vec2(0.06711056, 0.00583715);
 
-// dot(vec2(47, 17), ignDotScale) — IGN2 y‑channel decorrelation
-const ignD2Y = 3.25342787;
+const IGN_OFFSET_1 = vec2(19.19, 47.77);
 
-// dot(vec2(17, 59), ignDotScale) — IGN4 .g channel
-const ignD4G = 1.48527137;
+const ign1 = /* @__PURE__ */ Fn(([pixelPosition, frameWrapped]: any[]) => {
+  const scroll = vec2(float(IGN_TIME_SCROLL).mul(frameWrapped));
+  const p = pixelPosition.add(scroll);
 
-// dot(vec2(47, 13), ignDotScale) — IGN4 .b channel
-const ignD4B = 3.23007927;
+  return float(IGN_MULTIPLIER)
+    .mul(p.dot(IGN_DOT_SCALE).fract())
+    .fract();
+});
 
-// dot(vec2(109, 83), ignDotScale) — IGN4 .a channel
-const ignD4A = 7.79933269;
-
-const interleavedGradientNoise2 = /* @__PURE__ */ Fn(
-  ([screenPosition, frame]: any[]) => {
-    const d = dot(screenPosition, ignDotScale).fract();
-
-    const x = float(52.9829189)
-      .mul(d)
-      .add(frame.mul(GOLDEN_RATIO))
-      .fract();
-
-    const y = float(52.9829189)
-      .mul(float(ignD2Y).add(d).fract())
-      .add(frame.mul(PLASTIC_NUMBER))
-      .fract();
-
-    return vec2(x, y);
-  },
-);
-
-const interleavedGradientNoise4 = /* @__PURE__ */ Fn(
-  ([screenPosition]: any[]) => {
-    const d = dot(screenPosition, ignDotScale).fract();
-
-    return vec4(
-      float(52.9829189).mul(d).fract(),
-      float(52.9829189).mul(float(ignD4G).add(d).fract()).fract(),
-      float(52.9829189).mul(float(ignD4B).add(d).fract()).fract(),
-      float(52.9829189).mul(float(ignD4A).add(d).fract()).fract(),
+const ign2 = /* @__PURE__ */ Fn(
+  ([pixelPosition, frameWrapped]: any[]) => {
+    return vec2(
+      ign1(pixelPosition, frameWrapped),
+      ign1(pixelPosition.add(IGN_OFFSET_1), frameWrapped),
     );
   },
 );
@@ -1135,10 +1107,11 @@ export class N8AONode extends TempNode {
               resolution,
             ).toVar();
 
-        const screenPosition = vec2(uvNode.x, uvNode.y.oneMinus())
+        const pixelPosition = vec2(uvNode.x, uvNode.y.oneMinus())
           .mul(resolution)
+          .floor()
           .toVar();
-        const noise = interleavedGradientNoise2(screenPosition, frame).toVar();
+        const noise = ign2(pixelPosition, frame).toVar();
         const noiseX = noise.x.toVar();
         const noiseY = noise.y.toVar();
 
@@ -1327,25 +1300,20 @@ export class N8AONode extends TempNode {
           projectionMatrixInverse,
         ).toVar();
         const texelSize = vec2(1).div(resolution).toVar();
-        const screenPosition = vec2(uvNode.x, uvNode.y.oneMinus())
+        const pixelPosition = vec2(uvNode.x, uvNode.y.oneMinus())
           .mul(resolution)
+          .floor()
           .toVar();
-        const noise = interleavedGradientNoise4(screenPosition).toVar();
 
-        const angle = blurIndexNode
-          .equal(0)
-          .select(
-            noise.w.mul(TAU),
-            blurIndexNode
-              .equal(1)
-              .select(
-                noise.z.mul(TAU),
-                blurIndexNode
-                  .equal(2)
-                  .select(noise.y.mul(TAU), noise.x.mul(TAU)),
-              ),
-          )
-          .toVar();
+        const blurPixelPosition = pixelPosition.add(
+          vec2(
+            blurIndexNode.mul(17.0),
+            blurIndexNode.mul(43.0),
+          ),
+        ).toVar();
+
+        const noise = ign1(blurPixelPosition, float(0)).toVar();
+        const angle = noise.mul(TAU).toVar();
         const rotationSin = angle.sin().toVar();
         const rotationCos = angle.cos().toVar();
 
