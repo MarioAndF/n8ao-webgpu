@@ -711,18 +711,14 @@ export class N8AONode extends TempNode {
       this.lastProjectionMatrix.equals(this.camera.projectionMatrix)
     ) {
       this.frame += 1;
-    } else {
-      this.frame = 0;
-      this.needsFrame = false;
-      this.clearAccumulationTargets(renderer);
-    }
-
-    if (this.configuration.accumulate) {
       this.ignFrame = (this.ignFrame + 1) & 63;
       this.frameNode.value = this.ignFrame;
     } else {
+      this.frame = 0;
       this.ignFrame = 0;
       this.frameNode.value = 0;
+      this.needsFrame = false;
+      this.clearAccumulationTargets(renderer);
     }
 
     this.syncConfigurationUniforms();
