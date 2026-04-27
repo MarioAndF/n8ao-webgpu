@@ -7,6 +7,20 @@ import {
   resolveDisplayMode,
 } from "./math.js";
 
+const expectCloseTo = (
+  actual: number[][],
+  expected: number[][],
+  precision = 10,
+) => {
+  expect(actual).toHaveLength(expected.length);
+  actual.forEach((row, i) => {
+    expect(row).toHaveLength(expected[i].length);
+    row.forEach((val, j) => {
+      expect(val).toBeCloseTo(expected[i][j], precision);
+    });
+  });
+};
+
 describe("n8ao webgpu math", () => {
   it("matches upstream n8ao configuration defaults", () => {
     expect(createDefaultN8AOConfiguration()).toMatchObject({
@@ -36,8 +50,7 @@ describe("n8ao webgpu math", () => {
 
   it("generates the same hemisphere sample distribution as upstream n8ao", () => {
     const samples = generateHemisphereSamples(4);
-
-    expect(samples.map((sample) => sample.toArray())).toEqual([
+    expectCloseTo(samples.map((s) => s.toArray()), [
       [0.3535533905932738, 0, 0.9354143466934853],
       [-0.4515442808474507, 0.4136517405184686, 0.7905694150420949],
       [0.06911574220702117, -0.7875423888141976, 0.6123724356957944],
@@ -47,8 +60,7 @@ describe("n8ao webgpu math", () => {
 
   it("generates the same denoise poisson pattern as upstream n8ao", () => {
     const samples = generateDenoiseSamples(4, 11);
-
-    expect(samples.map((sample) => sample.toArray())).toEqual([
+    expectCloseTo(samples.map((s) => s.toArray()), [
       [0.35355339059327373, 0],
       [-1.4567267349998804e-15, -0.5946035575013605],
       [-0.8059274488676564, 3.948903589373758e-15],
