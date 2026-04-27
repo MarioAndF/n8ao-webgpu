@@ -702,7 +702,9 @@ export class N8AONode extends TempNode {
     } else {
       this.frame = 0;
       this.needsFrame = false;
-      this.clearAccumulationTargets(renderer);
+      if (this.configuration.accumulate) {
+        this.clearAccumulationTargets(renderer);
+      }
     }
 
     this.lastViewMatrix.copy(this.camera.matrixWorldInverse);
@@ -757,20 +759,24 @@ export class N8AONode extends TempNode {
         writeTarget = nextWriteTarget;
       }
 
-      this.accumulationCurrentTextureNode.value = readTarget.texture;
-      this.accumulationPreviousTextureNode.value =
-        this.accumulationTargetA.texture;
-      renderer.setRenderTarget(this.accumulationTargetB);
-      this.quadMesh.material = this.accumulationMaterial;
-      this.quadMesh.name = "N8AO.Accumulation";
-      this.quadMesh.render(renderer as any);
+      if (this.configuration.accumulate) {
+        this.accumulationCurrentTextureNode.value = readTarget.texture;
+        this.accumulationPreviousTextureNode.value =
+          this.accumulationTargetA.texture;
+        renderer.setRenderTarget(this.accumulationTargetB);
+        this.quadMesh.material = this.accumulationMaterial;
+        this.quadMesh.name = "N8AO.Accumulation";
+        this.quadMesh.render(renderer as any);
 
-      const previousAccumulationTarget = this.accumulationTargetA;
-      this.accumulationTargetA = this.accumulationTargetB;
-      this.accumulationTargetB = previousAccumulationTarget;
-      this.accumulationPreviousTextureNode.value =
-        this.accumulationTargetA.texture;
-      this.compositeAoTextureNode.value = this.accumulationTargetA.texture;
+        const previousAccumulationTarget = this.accumulationTargetA;
+        this.accumulationTargetA = this.accumulationTargetB;
+        this.accumulationTargetB = previousAccumulationTarget;
+        this.accumulationPreviousTextureNode.value =
+          this.accumulationTargetA.texture;
+        this.compositeAoTextureNode.value = this.accumulationTargetA.texture;
+      } else {
+        this.compositeAoTextureNode.value = readTarget.texture;
+      }
     }
 
     renderer.setRenderTarget(this.outputTarget);
